@@ -19,7 +19,7 @@ class Any(Base):
     name = None
 
     def __init__(
-        self, max_occurs=1, min_occurs=1, process_contents="strict", restrict=None
+        self, max_occurs=1, min_occurs=0, process_contents="strict", restrict=None
     ):
         """
 
