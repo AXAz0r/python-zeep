@@ -3,7 +3,6 @@ import typing
 
 from lxml import etree
 from requests_toolbelt.multipart.decoder import MultipartDecoder
-
 from zeep import ns, plugins, wsa
 from zeep.exceptions import Fault, TransportError, XMLSyntaxError
 from zeep.loader import parse_xml
@@ -16,7 +15,6 @@ from zeep.wsdl.utils import etree_to_string, url_http_to_https
 
 if typing.TYPE_CHECKING:
     from zeep.wsdl.wsdl import Definition
-
 
 logger = logging.getLogger(__name__)
 
@@ -120,11 +118,58 @@ class SoapBinding(Binding):
         :type kwargs: dict
 
         """
-        envelope, http_headers = self._create(
-            operation, args, kwargs, client=client, options=options
-        )
-
-        response = client.transport.post_xml(options["address"], envelope, http_headers)
+        if operation == 'set_entries':
+            session = kwargs['session']
+            module = kwargs['module_name']
+            items = kwargs['name_value_lists'][0]
+            source = kwargs['source']
+            item_count = len(items)
+            item_inner = []
+            for item in items:
+                name = item.get('name')
+                value = item.get('value')
+                item_inner.append(f"""<item xsi:type="ns1:name_value">
+    <name xsi:type="xsd:string">{name}</name>
+    <value xsi:type="xsd:string">{value}</value>
+</item>""")
+            item_inner = '\n'.join(item_inner)
+            body = f"""<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ns1="http://www.sugarcrm.com/sugarcrm" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <SOAP-ENV:Body>
+    <ns1:set_entries xsi:type="ns1:set_entriesRequestType">
+      <session xsi:type="xsd:string">{session}</session>
+      <module_name xsi:type="xsd:string">{module}</module_name>
+      <name_value_lists SOAP-ENC:arrayType="ns1:name_value_list[1]" xsi:type="SOAP-ENC:Array">
+        <item SOAP-ENC:arrayType="ns1:name_value[{item_count}]" xsi:type="SOAP-ENC:Array">
+          {item_inner}
+        </item>
+      </name_value_lists>
+      <source xsi:type="xsd:string">{source}</source>
+    </ns1:set_entries>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>"""
+            while '\n\n' in body:
+                body = body.replace('\n\n', '\n')
+            body = body.replace('\n', '')
+            while '> ' in body:
+                body = body.replace('> ', '>')
+            while ' <' in body:
+                body = body.replace(' <', '<')
+            fake = {
+                'session': kwargs.get('session'),
+                'module_name': kwargs.get('module_name'),
+                'name_value_lists': [{'name_value_list': []}],
+                'source': kwargs.get('source')
+            }
+            http_headers = self._create(
+                operation, args, fake, client=client, options=options
+            )[1]
+            response = client.transport.post_raw(options["address"], body.encode('utf-8'), http_headers)
+        else:
+            envelope, http_headers = self._create(
+                operation, args, kwargs, client=client, options=options
+            )
+            response = client.transport.post_xml(options["address"], envelope, http_headers)
 
         operation_obj = self.get(operation)
 

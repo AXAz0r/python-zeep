@@ -107,6 +107,9 @@ class Transport:
         message = etree_to_string(envelope)
         return self.post(address, message, headers)
 
+    def post_raw(self, address, message, headers):
+        return self.post(address, message, headers)
+
     def load(self, url):
         """Load the content from the given URL"""
         if not url:
