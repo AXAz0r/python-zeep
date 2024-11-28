@@ -210,7 +210,11 @@ class Date(BuiltinType):
 
     @treat_whitespace("collapse")
     def pythonvalue(self, value):
-        return isodate.parse_date(value)
+        try:
+            out = isodate.parse_date(value)
+        except ISO8601Error:
+            out = value
+        return out
 
 
 class gYearMonth(BuiltinType):
