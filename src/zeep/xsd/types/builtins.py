@@ -210,9 +210,10 @@ class Date(BuiltinType):
 
     @treat_whitespace("collapse")
     def pythonvalue(self, value):
+        # noinspection PyBroadException
         try:
             out = isodate.parse_date(value)
-        except ISO8601Error:
+        except Exception:
             out = value
         return out
 
